@@ -3,13 +3,13 @@ import { HumanMessage } from "@langchain/core/messages"
 import { tool } from "@langchain/core/tools"
 import { z } from "zod"
 
-const llm = new ChatOpenAI({
+export const llm = new ChatOpenAI({
     modelName: "gpt-4",
     temperature: 0,
 })
 
 // Define tool using zod schema
-const multiplyTool = tool(
+export const multiplyTool = tool(
     async ({ a, b }: { a: number; b: number }) => {
         return (a * b).toString()
     },
