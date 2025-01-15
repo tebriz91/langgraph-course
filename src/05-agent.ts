@@ -6,7 +6,13 @@ import {
     ToolMessage,
 } from "@langchain/core/messages"
 import { ChatOpenAI } from "@langchain/openai"
-import { StateGraph, Annotation, START, END } from "@langchain/langgraph"
+import {
+    StateGraph,
+    Annotation,
+    messagesStateReducer,
+    START,
+    END,
+} from "@langchain/langgraph"
 import { tool } from "@langchain/core/tools"
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt"
 import { z } from "zod"
@@ -17,15 +23,7 @@ import util from "util"
 // The state contains a "messages" array that can be updated with new messages
 const StateAnnotation = Annotation.Root({
     messages: Annotation<BaseMessage[]>({
-        // Reducer combines existing messages with new ones
-        // Can handle both single messages and arrays of messages
-        reducer: (left: BaseMessage[], right: BaseMessage | BaseMessage[]) => {
-            if (Array.isArray(right)) {
-                return left.concat(right)
-            }
-            return left.concat([right])
-        },
-        // Initialize with empty array
+        reducer: messagesStateReducer,
         default: () => [],
     }),
 })
@@ -149,15 +147,15 @@ result.messages.forEach((m) => {
     }
 })
 
-// // Pretty print the whole result object
-// function pprint(obj: any) {
-//     console.log(
-//         util.inspect(obj, {
-//             depth: null,
-//             colors: true,
-//             breakLength: 80,
-//         }),
-//     )
-// }
+// Pretty print the whole result object
+function pprint(obj: any) {
+    console.log(
+        util.inspect(obj, {
+            depth: null,
+            colors: true,
+            breakLength: 80,
+        }),
+    )
+}
 
-// pprint(result)
+pprint(result)
