@@ -104,11 +104,14 @@ const systemMessage = new SystemMessage(
 )
 
 // Initialize an assistant node that handles LLM interactions and tool calls
-const assistantNode = async (state: typeof StateAnnotation.State) => ({
-    messages: new AIMessage(
-        await llm.invoke([systemMessage, ...state.messages]), // Prepend system message to existing messages
-    ),
-})
+const assistantNode = async (state: typeof StateAnnotation.State) => {
+    // Call the model with the existing messages and prepend a system message to them
+    const result = await llm.invoke([systemMessage, ...state.messages])
+    // Return the result as an AIMessage instance (with metadata)
+    return {
+        messages: result,
+    }
+}
 
 // Create a tool node that can execute the defined tools
 const toolNode = new ToolNode(tools)
