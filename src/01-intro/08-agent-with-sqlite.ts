@@ -121,9 +121,10 @@ const systemMessage = new SystemMessage(
 const assistantNode = async (state: typeof StateAnnotation.State) => {
     // Call the model with the existing messages and prepend a system message to them
     const result = await llmWithTools.invoke([systemMessage, ...state.messages])
-    // Return the result as an AIMessage instance (with metadata)
+    // Return the result as a new message
+    // Array of messages is used to handle multiple messages
     return {
-        messages: result,
+        messages: [result],
     }
 }
 
@@ -150,7 +151,7 @@ const config = { configurable: { thread_id: "1" } }
 
 // Run
 const result = await graph
-    .invoke({ messages: [new HumanMessage("Hello!")] }, config)
+    .invoke({ messages: [new HumanMessage("Add 3 to 4.")] }, config)
     .catch((error) => {
         console.error(pc.red("Error during graph execution:"), error)
         return { messages: [] }
