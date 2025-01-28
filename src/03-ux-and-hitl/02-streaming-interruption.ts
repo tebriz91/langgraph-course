@@ -113,7 +113,8 @@ async function handleConversationTurn(message: string, config: any) {
             { messages: [inputMessage] },
             {
                 ...config,
-                version: "v2" as const, // API version
+                streamMode: "values", // default is "values"
+                version: "v2", // API version
             },
         )
 
@@ -121,12 +122,17 @@ async function handleConversationTurn(message: string, config: any) {
         for await (const event of stream) {
             if (!event) continue
 
-            // handle streaming model output
+            // handle streaming output
             if (event.event === "on_chat_model_stream") {
                 if (event.data?.chunk instanceof AIMessageChunk) {
                     const content = event.data.chunk.content
                     if (content) {
-                        process.stdout.write(pc.blue(content))
+                        // convert content to string if it's complex
+                        const textContent =
+                            typeof content === "string"
+                                ? content
+                                : JSON.stringify(content)
+                        process.stdout.write(pc.blue(textContent))
                     }
                 }
             }
@@ -149,7 +155,10 @@ async function handleConversationTurn(message: string, config: any) {
         }
 
         // display message count
-        const messageCount = stateValues.messages?.length || 0
+        // first ensure messages is an array before accessing length
+        const messageCount = Array.isArray(stateValues.messages)
+            ? stateValues.messages.length
+            : 0
         console.log(
             pc.whiteBright(
                 `Current number of messages in the state: ${messageCount}`,
@@ -186,10 +195,10 @@ async function simulateConversation() {
         await handleConversationTurn(message, config)
     }
 
-    // // show persisted state
-    // console.log(pc.cyan("\n=== Persisted State ==="))
-    // const persistedState = await checkpointer.get(config)
-    // console.log(util.inspect(persistedState, { depth: null, colors: true }))
+    // show persisted state
+    console.log(pc.cyan("\n=== Persisted State ==="))
+    const persistedState = await checkpointer.get(config)
+    console.log(util.inspect(persistedState, { depth: null, colors: true }))
 }
 
 // run the simulation
