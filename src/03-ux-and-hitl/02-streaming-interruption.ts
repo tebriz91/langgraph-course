@@ -7,10 +7,10 @@ import {
 } from "@langchain/langgraph"
 
 import {
-    AIMessage,
     HumanMessage,
     SystemMessage,
     RemoveMessage,
+    AIMessageChunk,
 } from "@langchain/core/messages"
 import { ChatOpenAI } from "@langchain/openai"
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite"
@@ -23,9 +23,10 @@ const StateAnnotation = Annotation.Root({
 })
 
 const llm = new ChatOpenAI({
-    modelName: "gpt-4o",
+    modelName: "gpt-4o-mini",
     apiKey: process.env.OPENAI_API_KEY,
     temperature: 0,
+    streaming: true, // enable streaming
 })
 
 // define logic to call the model
@@ -101,61 +102,65 @@ const graph = graphBuilder
     .compile({ checkpointer })
 
 async function handleConversationTurn(message: string, config: any) {
-    // convert user input into a HumanMessage object for the LLM
     const inputMessage = new HumanMessage(message)
-    // display the user's message
     console.log(pc.yellow(`Human: ${message}`))
 
-    // get the streamed response from the graph, using "values" mode to get chunks
-    const stream = await graph.stream(
-        { messages: [inputMessage] },
-        { ...config, streamMode: "values" },
-    )
+    process.stdout.write(pc.blue("AI: ")) // start AI response line
 
-    // initialize empty string to accumulate the streaming response
-    let fullResponse = ""
+    try {
+        // initialize streaming process
+        const stream = await graph.streamEvents(
+            { messages: [inputMessage] },
+            {
+                ...config,
+                version: "v2" as const, // API version
+            },
+        )
 
-    for await (const chunk of stream) {
-        if (chunk.messages?.length > 0) {
-            const lastMessage = chunk.messages[chunk.messages.length - 1]
-            // check if the chunk contains an AI message
-            if (lastMessage instanceof AIMessage) {
-                const newContent = lastMessage.content
-                // calculate what's new by slicing from the end of previous content
-                const addition = String(newContent).slice(fullResponse.length)
-                // display new content, without line breaks
-                process.stdout.write(pc.blue(addition))
-                // update full response with complete content so far
-                fullResponse = String(newContent)
+        // process stream events token by token
+        for await (const event of stream) {
+            if (!event) continue
+
+            // handle streaming model output
+            if (event.event === "on_chat_model_stream") {
+                if (event.data?.chunk instanceof AIMessageChunk) {
+                    const content = event.data.chunk.content
+                    if (content) {
+                        process.stdout.write(pc.blue(content))
+                    }
+                }
             }
         }
+        console.log() // new line after response
+
+        // get final state
+        const finalState = await checkpointer.get(config)
+        if (!finalState) {
+            console.error("Failed to get final state")
+            return
+        }
+
+        // access state values
+        const stateValues = finalState.channel_values || {}
+
+        // display summary if exists
+        if (stateValues.summary) {
+            console.log(pc.magenta(`Summary: ${stateValues.summary}`))
+        }
+
+        // display message count
+        const messageCount = stateValues.messages?.length || 0
+        console.log(
+            pc.whiteBright(
+                `Current number of messages in the state: ${messageCount}`,
+            ),
+        )
+
+        return finalState
+    } catch (error) {
+        console.error(pc.red("Error during streaming:"), error)
+        throw error
     }
-    console.log() // new line after response
-
-    // get the final state
-    const finalState = await checkpointer.get(config)
-    if (!finalState) {
-        console.error("Failed to get final state")
-        return
-    }
-
-    // access the state values using channel_values
-    const stateValues = finalState.channel_values || {}
-
-    // display summary if it exists
-    if (stateValues.summary) {
-        console.log(pc.magenta(`Summary: ${stateValues.summary}`))
-    }
-
-    // display correct message count
-    const messageCount = stateValues.messages?.length || 0
-    console.log(
-        pc.whiteBright(
-            `Current number of messages in the state: ${messageCount}`,
-        ),
-    )
-
-    return finalState
 }
 
 async function simulateConversation() {
@@ -168,6 +173,12 @@ async function simulateConversation() {
         "what's my name?",
         "i like the 49ers!",
         "i like Nick Bosa, isn't he the highest paid defensive player?",
+        "what's the weather like?",
+        "Goodbye!",
+        "who is the highest paid defensive player?",
+        "do you remember my name?",
+        "how to get to the 49ers stadium?",
+        "oh, I forgot to ask, what's the weather like?",
     ]
 
     // loop through the conversation
