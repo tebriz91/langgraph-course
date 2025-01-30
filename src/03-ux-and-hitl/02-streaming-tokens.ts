@@ -113,7 +113,7 @@ async function handleConversationTurn(message: string, config: any) {
             { messages: [inputMessage] },
             {
                 ...config,
-                streamMode: "values", // default is "values"
+                streamMode: "updates", // default is "values" (streaming full state after each node is called)
                 version: "v2", // API version
             },
         )
@@ -182,12 +182,12 @@ async function simulateConversation() {
         "what's my name?",
         "i like the 49ers!",
         "i like Nick Bosa, isn't he the highest paid defensive player?",
-        "what's the weather like?",
-        "Goodbye!",
-        "who is the highest paid defensive player?",
-        "do you remember my name?",
-        "how to get to the 49ers stadium?",
-        "oh, I forgot to ask, what's the weather like?",
+        // "what's the weather like?",
+        // "Goodbye!",
+        // "who is the highest paid defensive player?",
+        // "do you remember my name?",
+        // "how to get to the 49ers stadium?",
+        // "oh, I forgot to ask, what's the weather like?",
     ]
 
     // loop through the conversation
