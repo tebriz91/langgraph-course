@@ -112,9 +112,9 @@ async function handleConversationTurn(message: string, config: any) {
         const stream = await graph.streamEvents(
             { messages: [inputMessage] },
             {
-                ...config,
                 streamMode: "updates", // default is "values" (streaming full state after each node is called)
                 version: "v2", // API version
+                ...config,
             },
         )
 
